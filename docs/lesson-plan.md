@@ -1,4 +1,5 @@
-# React Native Launchpad — Workshop Guide
+# React Native Launchpad — Workshop Plan
+
 
 > **Goal:** You'll leave with a working app on your phone and the confidence to keep building.
 
@@ -17,15 +18,17 @@ A personal mood-tracking app where you can:
 
 ---
 
-## 2 · What We'll Cover
+## 2 · Session Timeline (3 h)
 
-| Module | What You'll Do |
-|---|---|
-| **Module 1 — Setup & Building Blocks** | Get Expo Go installed and run `npx create-expo-app@latest --template default@sdk-54`. Build a "Hello World" app to confirm your setup works. Then learn about components, JSX, and props by building a `<MoodCard>`. Style it with `StyleSheet.create` and Flexbox basics. |
-| **Module 2 — State & Interactivity** | Build the emoji mood grid. Make each card tappable — when a mood is selected, update state and display it prominently with a motivational quote. Learn the re-rendering model: call the setter → component re-draws. |
-| **Module 3 — Lists, Themes & Polish** | Build the mood history list — each pick pushes onto an array and renders via `FlatList`. Then add a light/dark mode toggle. Customize colors, emojis, or quotes to make the app your own. |
-| **🏆 Mini Demo Showdown** | Show your app to the group — what you customized, a feature you're proud of, or something that surprised you. |
-| **Wrap-Up & Next Steps** | Quick recap of what was built. Resources for continuing your journey. Q&A. |
+| Block | Duration | Topic | Details |
+|---|---|---|---|
+| **Module 1 — Setup & Building Blocks** | 45 min | Environment, Components, JSX, Props, Styling | Get Expo Go installed and run `npx create-expo-app@latest --template default@sdk-54`. Live-code "Hello World" to confirm setup. Then learn about components, JSX, and props by building a `<MoodCard>`. Style it with `StyleSheet.create` and Flexbox basics. |
+| **Break 1** | 15 min | — | — |
+| **Module 2 — State & Interactivity** | 40 min | `useState`, `Pressable` / `TouchableOpacity`, event handlers | Build the emoji mood grid. Make each card tappable — when a mood is selected, update state and display it prominently with a motivational quote. Learn the re-rendering model: call the setter → component re-draws. |
+| **Break 2** | 15 min | — | — |
+| **Module 3 — Lists, Themes & Polish** | 35 min | `FlatList`, arrays in state, conditional rendering, theme toggle | Build the mood history list — each pick pushes onto an array and renders via `FlatList`. Then add a light/dark mode toggle. Remaining time: customize colors, emojis, or quotes to make the app your own. |
+| **🏆 Mini Demo Showdown** | 25 min | Show off your app! | Show your app to the group — what you customized, a feature you're proud of, or something that surprised you. Optional awards: "Most Creative," "Best Style," "Funniest Mood," etc. |
+| **Wrap-Up & Next Steps** | 5 min | Recap, resources, Q\&A | Quick recap of what was built. Resources for continuing your journey. |
 
 ---
 
