@@ -1,0 +1,43 @@
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import MoodCard from './MoodCard';
+import type { Mood } from '@/constants/moods';
+import type { MoodEntry } from '@/context/mood-context';
+
+/**
+ * MoodGrid — wrapping grid of MoodCards (Module 2).
+ * Uses flexWrap row layout as specified in code-plan §5.3.
+ */
+
+interface MoodGridProps {
+  moods: Mood[];
+  selectedMood: MoodEntry | null;
+  isDarkMode: boolean;
+  onSelectMood: (mood: Mood) => void;
+}
+
+export default function MoodGrid({ moods, selectedMood, isDarkMode, onSelectMood }: MoodGridProps) {
+  return (
+    <View style={styles.grid}>
+      {moods.map((mood) => (
+        <MoodCard
+          key={mood.label}
+          emoji={mood.emoji}
+          label={mood.label}
+          isSelected={selectedMood?.label === mood.label}
+          isDarkMode={isDarkMode}
+          onPress={() => onSelectMood(mood)}
+        />
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+});
