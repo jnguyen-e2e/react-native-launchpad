@@ -120,17 +120,26 @@ Make sure you have the following ready **before** the session:
 
 ```
 react-native-launchpad/
-├── app/                    # Expo Router app directory (or App.js for simple setup)
-│   ├── index.js            # Main entry — the MoodBoard screen
-│   └── components/
-│       ├── MoodCard.js     # Single mood emoji card
-│       ├── MoodGrid.js     # Grid of MoodCards
-│       ├── MoodDisplay.js  # Large display of selected mood + quote
-│       └── HistoryList.js  # FlatList of past mood selections
-├── assets/                 # Images, fonts, etc.
+├── App.js                     # Entry point — tab navigation (pre-built)
+├── screens/
+│   ├── HomeScreen.js          # Main screen layout (pre-built)
+│   └── HistoryScreen.js       # History screen layout (pre-built)
+├── components/
+│   ├── MoodCard.js            # ✏️ TODO Module 1 — build the emoji card
+│   ├── MoodGrid.js            # ✏️ TODO Module 2 — render the card grid
+│   ├── MoodDisplay.js         # ✏️ TODO Module 2 — show selected mood + quote
+│   ├── HistoryList.js         # ✏️ TODO Module 3 — build the FlatList
+│   └── ThemeToggle.js         # ✏️ TODO Module 3 — build the toggle button
+├── context/
+│   └── mood-context.js        # ✏️ TODO Module 2 & 3 — write state logic
+├── constants/
+│   ├── moods.js               # Emoji + label data (pre-built)
+│   ├── quotes.js              # Motivational quotes (pre-built)
+│   └── theme.js               # Color tokens (pre-built)
+├── assets/                    # Images, fonts, etc.
 ├── docs/
-│   └── lesson-plan.md      # ← You are here
-├── app.json                # Expo configuration
+│   └── lesson-plan.md         # ← You are here
+├── app.json                   # Expo configuration
 ├── package.json
 └── README.md
 ```
