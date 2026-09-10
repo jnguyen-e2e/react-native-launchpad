@@ -2,7 +2,7 @@
 
 A beginner-friendly, modern React Native & Expo starter app and workshop project. Build a polished **MoodBoard** personal mood tracker with tabs, theming, interactive emoji grids, motivational quotes, and mood history.
 
-Built with **Expo SDK 54**, **React 19**, **React Native 0.81** (New Architecture enabled), and **React Navigation v7 (Static API)**.
+Built with **Expo SDK 57**, **React 19**, **React Native 0.86** (New Architecture enabled), and **React Navigation v7 (Static API)**.
 
 ---
 
@@ -19,10 +19,10 @@ Built with **Expo SDK 54**, **React 19**, **React Native 0.81** (New Architectur
 
 ## 🛠️ Tech Stack
 
-- **Framework:** [Expo SDK 54](https://docs.expo.dev/versions/v54.0.0/)
-- **Core:** React 19 / React Native 0.81 (New Architecture enabled)
+- **Framework:** [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/)
+- **Core:** React 19 / React Native 0.86 (New Architecture enabled)
 - **Navigation:** `@react-navigation/native` & `@react-navigation/bottom-tabs` (Static API)
-- **Language:** TypeScript
+- **Language:** JavaScript
 - **Icons & Haptics:** `expo-symbols`, `@expo/vector-icons`, `expo-haptics`
 
 ---
@@ -33,26 +33,29 @@ Built with **Expo SDK 54**, **React 19**, **React Native 0.81** (New Architectur
 react-native-launchpad/
 ├── App.js                     # Root navigation & theme provider
 ├── app.json                   # Expo configuration
-├── jsconfig.json              # Path alias mapping
+├── jsconfig.json              # Path alias mapping (@/*)
 ├── screens/
 │   ├── HomeScreen.js          # MoodBoard screen (picker & quote display)
 │   └── HistoryScreen.js       # Mood history timeline
 ├── components/
-│   ├── MoodCard.js            # Individual emoji mood card
-│   ├── MoodGrid.js            # Grid layout for mood cards
-│   ├── MoodDisplay.js         # Selected mood banner & quote display
-│   ├── HistoryList.js         # FlatList displaying past mood entries
-│   ├── ThemeToggle.js         # Dark / light mode toggle switch
+│   ├── MoodCard.js            # Individual emoji mood card (Module 1)
+│   ├── MoodGrid.js            # Grid layout for mood cards (Module 2)
+│   ├── MoodDisplay.js         # Selected mood banner & quote display (Module 2)
+│   ├── HistoryList.js         # FlatList displaying past mood entries (Module 3)
+│   ├── ThemeToggle.js         # Dark / light mode toggle switch (Module 3)
 │   └── ui/                    # Reusable UI primitives (icons, tabs)
 ├── context/
-│   └── mood-context.js        # Mood state, history list, and theme context
+│   └── mood-context.js        # Mood state, history list, and theme context (Module 2 & 3)
 ├── constants/
 │   ├── moods.js               # Mood definitions (emojis & labels)
 │   ├── quotes.js              # Motivational quotes collection
 │   └── theme.js               # Light & dark color tokens
+├── hooks/
+│   └── use-color-scheme.js    # Color scheme detection hook
 └── docs/
+    ├── code-plan.md           # Step-by-step module implementation guide
     ├── lesson-plan.md         # 3-hour workshop timeline & core concepts
-    └── code-plan.md           # Step-by-step module implementation guide
+    └── setup-guide.md         # Beginner step-by-step setup guide
 ```
 
 ---
@@ -103,11 +106,12 @@ npx expo start
 
 This repository serves as a hands-on workshop project with complete curriculum docs located in `docs/`:
 
+- **[Setup Guide](docs/setup-guide.md)**: Beginner step-by-step setup guide for configuring Node.js, VS Code, and running the app in Expo Go.
 - **[Lesson Plan](docs/lesson-plan.md)**: Workshop outline covering React Native fundamentals, JSX, Props, State, Lists, and Themes.
 - **[Code Plan](docs/code-plan.md)**: Step-by-step technical guide breaking down the app into 3 core modules:
   1. **Module 1 — Setup & Building Blocks:** Components, JSX, Props, and `<MoodCard>` styling.
-  2. **Module 2 — State & Interactivity:** `useState`, press events, `<MoodGrid>`, and `<MoodDisplay>`.
-  3. **Module 3 — Lists, Themes & Polish:** `FlatList`, `<HistoryList>`, `<ThemeToggle>`, and Context state sharing.
+  2. **Module 2 — State & Interactivity:** `useState`, press events, `<MoodGrid>`, `<MoodDisplay>`, and `MoodContext`.
+  3. **Module 3 — Lists, Themes & Polish:** `FlatList`, `<HistoryList>`, `<ThemeToggle>`, and dark/light theming.
 
 ---
 

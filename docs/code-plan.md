@@ -2,7 +2,7 @@
 
 > **Source:** Derived from [`lesson-plan.md`](file:///Users/jnguyen/Documents/GitHub/react-native-launchpad/docs/lesson-plan.md)
 >
-> This document maps every workshop module to concrete code — files, components, state shape, styling, and data flow — so you can scaffold the project with confidence.
+> This document maps every workshop module to concrete code — files, components, state shape, styling, and data flow — based on the [`demo-js`](https://github.com/your-username/react-native-launchpad/tree/demo-js) implementation.
 
 ---
 
@@ -11,43 +11,57 @@
 ### 1.1 — Initialize
 
 ```bash
-npx create-expo-app@latest react-native-launchpad --template default@sdk-54
+npx create-expo-app@latest react-native-launchpad --template default@sdk-57
 ```
 
 ### 1.2 — Target File Tree
 
-```
+```text
 react-native-launchpad/
-├── app/
-│   ├── index.js                # Root screen — assembles all components
-│   └── components/
-│       ├── MoodCard.js          # Single emoji card (Module 1)
-│       ├── MoodGrid.js          # Grid of MoodCards (Module 2)
-│       ├── MoodDisplay.js       # Selected mood + motivational quote (Module 2)
-│       ├── HistoryList.js       # FlatList of past picks (Module 3)
-│       └── ThemeToggle.js       # Light / dark mode switch (Module 3)
-├── assets/                      # Images, fonts, etc.
+├── App.js                     # Root navigation & theme provider
+├── screens/
+│   ├── HomeScreen.js          # MoodBoard screen (picker & quote display)
+│   └── HistoryScreen.js       # Mood history timeline
+├── components/
+│   ├── MoodCard.js            # Single emoji card (Module 1)
+│   ├── MoodGrid.js            # Grid of MoodCards (Module 2)
+│   ├── MoodDisplay.js         # Selected mood banner & quote display (Module 2)
+│   ├── HistoryList.js         # FlatList displaying past mood entries (Module 3)
+│   ├── ThemeToggle.js         # Light / dark mode switch (Module 3)
+│   └── ui/
+│       ├── icon-symbol.js     # Cross-platform icon component
+│       └── icon-symbol.ios.js # iOS SF Symbols implementation
+├── context/
+│   └── mood-context.js        # Mood state, history list, and theme context (Module 2 & 3)
 ├── constants/
-│   ├── moods.js                 # Emoji + label data
-│   └── quotes.js                # Motivational quotes pool
+│   ├── moods.js               # Emoji + label data
+│   ├── quotes.js              # Motivational quotes pool
+│   └── theme.js               # Light & dark color tokens
+├── hooks/
+│   └── use-color-scheme.js    # Color scheme hook
+├── assets/                    # Images, fonts, etc.
 ├── docs/
-│   ├── lesson-plan.md
-│   └── code-plan.md             # ← You are here
-├── app.json
+│   ├── code-plan.md           # ← You are here
+│   ├── lesson-plan.md         # 3-hour workshop timeline & core concepts
+│   └── setup-guide.md         # Beginner step-by-step setup guide
+├── app.json                   # Expo configuration
+├── jsconfig.json              # Path alias mapping (@/*)
 ├── package.json
 └── README.md
 ```
 
 > [!NOTE]
-> The `constants/` directory is introduced to keep data (emojis, quotes) separate from component logic, making it easy for attendees to customize.
+> - `constants/` keeps static data (emojis, quotes, theme tokens) separated from component logic.
+> - `context/mood-context.js` shares mood state and history across tabs without prop drilling.
+> - `jsconfig.json` configures the `@/*` path alias pointing to the project root.
 
 ---
 
-## 2 · Data Models & Constants
+## 2 · Data Models & State Management
 
 ### 2.1 — `constants/moods.js`
 
-An array of mood objects used as the data source for the grid and history.
+An array of mood objects used as the data source for the grid and history:
 
 ```js
 // constants/moods.js
@@ -68,7 +82,7 @@ export default MOODS;
 
 ### 2.2 — `constants/quotes.js`
 
-A map (or array) of motivational quotes, optionally keyed by mood label.
+A map of motivational quotes keyed by mood label:
 
 ```js
 // constants/quotes.js
@@ -87,18 +101,91 @@ const QUOTES = {
 export default QUOTES;
 ```
 
-### 2.3 — State Shape (in `app/index.js`)
+### 2.3 — `constants/theme.js`
+
+Theme tokens for light/dark mode and tab bar colors:
+
+```js
+// constants/theme.js
+export const THEMES = {
+  light: {
+    background: '#F9FAFB',
+    card:       '#FFFFFF',
+    text:       '#1F2937',
+    accent:     '#6366F1', // indigo-500
+    border:     '#E5E7EB',
+  },
+  dark: {
+    background: '#111827',
+    card:       '#1F2937',
+    text:       '#F9FAFB',
+    accent:     '#818CF8', // indigo-400
+    border:     '#374151',
+  },
+};
+
+export const Colors = {
+  light: {
+    text: '#11181C',
+    background: '#fff',
+    tint: '#0a7ea4',
+    icon: '#687076',
+    tabIconDefault: '#687076',
+    tabIconSelected: '#0a7ea4',
+  },
+  dark: {
+    text: '#ECEDEE',
+    background: '#151718',
+    tint: '#fff',
+    icon: '#9BA1A6',
+    tabIconDefault: '#9BA1A6',
+    tabIconSelected: '#fff',
+  },
+};
+```
+
+### 2.4 — State Management (`context/mood-context.js`)
+
+Shares mood state, history list, and theme toggle across the app:
 
 | State Variable | Type | Initial Value | Purpose |
 |---|---|---|---|
-| `selectedMood` | `object \| null` | `null` | Currently selected mood `{ emoji, label }` |
+| `selectedMood` | `object \| null` | `null` | Currently selected mood `{ emoji, label, timestamp }` |
 | `history` | `array` | `[]` | List of `{ emoji, label, timestamp }` entries |
-| `isDarkMode` | `boolean` | `false` | Controls light/dark theme |
+| `isDarkMode` | `boolean` | `false` | Controls light / dark theme |
 
 ```js
-const [selectedMood, setSelectedMood] = useState(null);
-const [history, setHistory] = useState([]);
-const [isDarkMode, setIsDarkMode] = useState(false);
+// context/mood-context.js
+import React, { createContext, useContext, useState } from 'react';
+
+const MoodContext = createContext(undefined);
+
+export function MoodProvider({ children }) {
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const handleSelectMood = (mood) => {
+    const entry = { ...mood, timestamp: new Date().toLocaleTimeString() };
+    setSelectedMood(entry);
+    // Prepend so the most recent entry is at the top of history
+    setHistory((prev) => [entry, ...prev]);
+  };
+
+  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+
+  return (
+    <MoodContext.Provider value={{ selectedMood, history, isDarkMode, handleSelectMood, toggleDarkMode }}>
+      {children}
+    </MoodContext.Provider>
+  );
+}
+
+export function useMood() {
+  const ctx = useContext(MoodContext);
+  if (!ctx) throw new Error('useMood must be used inside MoodProvider');
+  return ctx;
+}
 ```
 
 ---
@@ -109,19 +196,59 @@ const [isDarkMode, setIsDarkMode] = useState(false);
 
 | Aspect | Detail |
 |---|---|
-| **File** | `app/components/MoodCard.js` |
-| **Props** | `emoji` (string), `label` (string), `onPress` (function), `isSelected` (boolean) |
-| **Renders** | `Pressable` → `View` → `Text` (emoji) + `Text` (label) |
-| **Styling** | Rounded card, centered content, highlight border when `isSelected` |
+| **File** | `components/MoodCard.js` |
+| **Props** | `emoji` (string), `label` (string), `isSelected` (boolean), `isDarkMode` (boolean), `onPress` (function) |
+| **Renders** | `Pressable` → `Text` (emoji) + `Text` (label) |
+| **Styling** | Rounded card, centered content, accent border when `isSelected`, theme-aware background/text |
 
 ```jsx
-// Simplified API
-<MoodCard
-  emoji="😊"
-  label="Happy"
-  isSelected={selectedMood?.label === "Happy"}
-  onPress={() => handleSelectMood({ emoji: "😊", label: "Happy" })}
-/>
+// components/MoodCard.js
+import React from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+export default function MoodCard({ emoji, label, isSelected, isDarkMode, onPress }) {
+  const bg = isDarkMode ? '#1F2937' : '#FFFFFF';
+  const textColor = isDarkMode ? '#F9FAFB' : '#1F2937';
+  const accent = isDarkMode ? '#818CF8' : '#6366F1';
+  const border = isSelected ? accent : (isDarkMode ? '#374151' : '#E5E7EB');
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth: isSelected ? 2 : 1,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <Text style={styles.emoji}>{emoji}</Text>
+      <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 6,
+    width: 90,
+  },
+  emoji: {
+    fontSize: 32,
+  },
+  label: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+});
 ```
 
 ---
@@ -130,17 +257,42 @@ const [isDarkMode, setIsDarkMode] = useState(false);
 
 | Aspect | Detail |
 |---|---|
-| **File** | `app/components/MoodGrid.js` |
-| **Props** | `moods` (array), `selectedMood` (object), `onSelectMood` (function) |
-| **Renders** | `View` with `flexDirection: 'row'`, `flexWrap: 'wrap'` containing `MoodCard` for each item |
-| **Logic** | Maps over `moods` array, passes `onPress` and `isSelected` to each `MoodCard` |
+| **File** | `components/MoodGrid.js` |
+| **Props** | `moods` (array), `selectedMood` (object), `isDarkMode` (boolean), `onSelectMood` (function) |
+| **Renders** | `View` with `flexDirection: 'row'`, `flexWrap: 'wrap'`, `justifyContent: 'center'` |
+| **Logic** | Maps over `moods` array, passes `isSelected`, `isDarkMode`, and `onPress` to each `MoodCard` |
 
 ```jsx
-<MoodGrid
-  moods={MOODS}
-  selectedMood={selectedMood}
-  onSelectMood={handleSelectMood}
-/>
+// components/MoodGrid.js
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import MoodCard from './MoodCard';
+
+export default function MoodGrid({ moods, selectedMood, isDarkMode, onSelectMood }) {
+  return (
+    <View style={styles.grid}>
+      {moods.map((mood) => (
+        <MoodCard
+          key={mood.label}
+          emoji={mood.emoji}
+          label={mood.label}
+          isSelected={selectedMood?.label === mood.label}
+          isDarkMode={isDarkMode}
+          onPress={() => onSelectMood(mood)}
+        />
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+});
 ```
 
 ---
@@ -149,13 +301,43 @@ const [isDarkMode, setIsDarkMode] = useState(false);
 
 | Aspect | Detail |
 |---|---|
-| **File** | `app/components/MoodDisplay.js` |
-| **Props** | `mood` (object \| null) |
+| **File** | `components/MoodDisplay.js` |
+| **Props** | `mood` (object \| null), `isDarkMode` (boolean) |
 | **Renders** | Large emoji `Text`, label `Text`, quote `Text` (from `QUOTES` map) |
-| **Conditional** | If `mood` is `null`, render a placeholder message: *"Tap a mood to get started!"* |
+| **Conditional** | If `mood` is `null`, renders a placeholder: *"Tap a mood to get started! 👆"* |
 
 ```jsx
-<MoodDisplay mood={selectedMood} />
+// components/MoodDisplay.js
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import QUOTES from '@/constants/quotes';
+
+export default function MoodDisplay({ mood, isDarkMode }) {
+  const textColor = isDarkMode ? '#F9FAFB' : '#1F2937';
+  const accent = isDarkMode ? '#818CF8' : '#6366F1';
+  const cardBg = isDarkMode ? '#1F2937' : '#FFFFFF';
+  const border = isDarkMode ? '#374151' : '#E5E7EB';
+
+  if (!mood) {
+    return (
+      <View style={[styles.container, { backgroundColor: cardBg, borderColor: border }]}>
+        <Text style={[styles.placeholder, { color: textColor }]}>
+          Tap a mood to get started! 👆
+        </Text>
+      </View>
+    );
+  }
+
+  const quote = QUOTES[mood.label] ?? '';
+
+  return (
+    <View style={[styles.container, { backgroundColor: cardBg, borderColor: border }]}>
+      <Text style={styles.bigEmoji}>{mood.emoji}</Text>
+      <Text style={[styles.label, { color: accent }]}>{mood.label}</Text>
+      <Text style={[styles.quote, { color: textColor }]}>{quote}</Text>
+    </View>
+  );
+}
 ```
 
 ---
@@ -164,14 +346,50 @@ const [isDarkMode, setIsDarkMode] = useState(false);
 
 | Aspect | Detail |
 |---|---|
-| **File** | `app/components/HistoryList.js` |
-| **Props** | `history` (array of `{ emoji, label, timestamp }`) |
-| **Renders** | `FlatList` with each row showing emoji, label, and formatted time |
-| **Key extractor** | `(item, index) => index.toString()` (or use `timestamp` for uniqueness) |
-| **Empty state** | Render a message when `history` is empty |
+| **File** | `components/HistoryList.js` |
+| **Props** | `history` (array of `{ emoji, label, timestamp }`), `isDarkMode` (boolean) |
+| **Renders** | `FlatList` with each row displaying emoji, label, and timestamp |
+| **Key extractor** | `(item, index) => `${item.timestamp}-${index}`` |
+| **Empty state** | Shows *"No moods logged yet. Go pick one! 😊"* when `history` is empty |
 
 ```jsx
-<HistoryList history={history} />
+// components/HistoryList.js
+import React from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+
+export default function HistoryList({ history, isDarkMode }) {
+  const textColor = isDarkMode ? '#F9FAFB' : '#1F2937';
+  const cardBg = isDarkMode ? '#1F2937' : '#FFFFFF';
+  const border = isDarkMode ? '#374151' : '#E5E7EB';
+  const subText = isDarkMode ? '#9BA1A6' : '#687076';
+
+  if (history.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <Text style={[styles.emptyText, { color: textColor }]}>
+          No moods logged yet. Go pick one! 😊
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={history}
+      keyExtractor={(item, index) => `${item.timestamp}-${index}`}
+      contentContainerStyle={styles.list}
+      renderItem={({ item }) => (
+        <View style={[styles.row, { backgroundColor: cardBg, borderColor: border }]}>
+          <Text style={styles.rowEmoji}>{item.emoji}</Text>
+          <View style={styles.rowInfo}>
+            <Text style={[styles.rowLabel, { color: textColor }]}>{item.label}</Text>
+            <Text style={[styles.rowTime, { color: subText }]}>{item.timestamp}</Text>
+          </View>
+        </View>
+      )}
+    />
+  );
+}
 ```
 
 ---
@@ -180,85 +398,216 @@ const [isDarkMode, setIsDarkMode] = useState(false);
 
 | Aspect | Detail |
 |---|---|
-| **File** | `app/components/ThemeToggle.js` |
+| **File** | `components/ThemeToggle.js` |
 | **Props** | `isDarkMode` (boolean), `onToggle` (function) |
-| **Renders** | `Pressable` (or `Switch`) with a sun/moon emoji and label |
-| **Behavior** | Calls `onToggle` to flip `isDarkMode` state in parent |
+| **Renders** | Pill-shaped `Pressable` showing sun/moon icon and current mode text |
+| **Behavior** | Calls `onToggle` to flip `isDarkMode` state in `MoodContext` |
 
 ```jsx
-<ThemeToggle isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
+// components/ThemeToggle.js
+import React from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+export default function ThemeToggle({ isDarkMode, onToggle }) {
+  const textColor = isDarkMode ? '#F9FAFB' : '#1F2937';
+  const cardBg = isDarkMode ? '#1F2937' : '#FFFFFF';
+  const border = isDarkMode ? '#374151' : '#E5E7EB';
+
+  return (
+    <Pressable
+      onPress={onToggle}
+      style={({ pressed }) => [
+        styles.button,
+        { backgroundColor: cardBg, borderColor: border, opacity: pressed ? 0.7 : 1 },
+      ]}
+    >
+      <Text style={styles.icon}>{isDarkMode ? '🌙' : '☀️'}</Text>
+      <Text style={[styles.label, { color: textColor }]}>
+        {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+      </Text>
+    </Pressable>
+  );
+}
 ```
 
 ---
 
-## 4 · Core Event Handlers (in `app/index.js`)
+## 4 · Screen Architecture & Navigation
 
-```js
-// Select a mood → update display + push to history
-const handleSelectMood = (mood) => {
-  setSelectedMood(mood);
-  setHistory((prev) => [
-    { ...mood, timestamp: new Date().toLocaleTimeString() },
-    ...prev,
-  ]);
-};
+### 4.1 — Root Navigation (`App.js`)
+
+Uses **React Navigation v7 Static API** (`createBottomTabNavigator` + `createStaticNavigation`) with two tabs:
+
+```jsx
+// App.js
+import React from 'react';
+import { createStaticNavigation } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+
+import { MoodProvider } from '@/context/mood-context';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import HomeScreen from '@/screens/HomeScreen';
+import HistoryScreen from '@/screens/HistoryScreen';
+
+const RootTabs = createBottomTabNavigator({
+  screens: {
+    MoodBoard: {
+      screen: HomeScreen,
+      options: {
+        title: 'MoodBoard',
+        headerShown: false,
+        tabBarIcon: ({ color }) => (
+          <IconSymbol size={28} name="face.smiling" color={color} />
+        ),
+      },
+    },
+    History: {
+      screen: HistoryScreen,
+      options: {
+        title: 'History',
+        headerShown: false,
+        tabBarIcon: ({ color }) => (
+          <IconSymbol size={28} name="clock.fill" color={color} />
+        ),
+      },
+    },
+  },
+});
+
+const Navigation = createStaticNavigation(RootTabs);
+
+export default function App() {
+  const colorScheme = useColorScheme();
+
+  return (
+    <SafeAreaProvider>
+      <MoodProvider>
+        <Navigation
+          theme={{
+            dark: colorScheme === 'dark',
+            colors: {
+              primary: Colors[colorScheme ?? 'light'].tint,
+              background: Colors[colorScheme ?? 'light'].background,
+              card: Colors[colorScheme ?? 'light'].background,
+              text: Colors[colorScheme ?? 'light'].text,
+              border: Colors[colorScheme ?? 'light'].background,
+              notification: Colors[colorScheme ?? 'light'].tint,
+            },
+            fonts: {
+              regular: { fontFamily: 'System', fontWeight: '400' },
+              medium: { fontFamily: 'System', fontWeight: '500' },
+              bold: { fontFamily: 'System', fontWeight: '700' },
+              heavy: { fontFamily: 'System', fontWeight: '800' },
+            },
+          }}
+        />
+        <StatusBar style="auto" />
+      </MoodProvider>
+    </SafeAreaProvider>
+  );
+}
 ```
 
-> [!TIP]
-> Prepending to the array (`[newItem, ...prev]`) keeps the most recent mood at the top of the history list.
+### 4.2 — `HomeScreen` (`screens/HomeScreen.js`)
+
+Assembles `ThemeToggle`, `MoodGrid`, and `MoodDisplay` inside a `ScrollView`:
+
+```jsx
+// screens/HomeScreen.js
+import React from 'react';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useMood } from '@/context/mood-context';
+import MoodDisplay from '@/components/MoodDisplay';
+import MoodGrid from '@/components/MoodGrid';
+import ThemeToggle from '@/components/ThemeToggle';
+import MOODS from '@/constants/moods';
+import { THEMES } from '@/constants/theme';
+
+export default function HomeScreen() {
+  const { selectedMood, isDarkMode, handleSelectMood, toggleDarkMode } = useMood();
+  const theme = THEMES[isDarkMode ? 'dark' : 'light'];
+
+  return (
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.title, { color: theme.text }]}>MoodBoard</Text>
+        <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
+        <MoodGrid
+          moods={MOODS}
+          selectedMood={selectedMood}
+          isDarkMode={isDarkMode}
+          onSelectMood={handleSelectMood}
+        />
+        <MoodDisplay mood={selectedMood} isDarkMode={isDarkMode} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+```
+
+### 4.3 — `HistoryScreen` (`screens/HistoryScreen.js`)
+
+Renders the `HistoryList` using data sourced from `MoodContext`:
+
+```jsx
+// screens/HistoryScreen.js
+import React from 'react';
+import { StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useMood } from '@/context/mood-context';
+import HistoryList from '@/components/HistoryList';
+import { THEMES } from '@/constants/theme';
+
+export default function HistoryScreen() {
+  const { history, isDarkMode } = useMood();
+  const theme = THEMES[isDarkMode ? 'dark' : 'light'];
+
+  return (
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>History</Text>
+      <HistoryList history={history} isDarkMode={isDarkMode} />
+    </SafeAreaView>
+  );
+}
+```
 
 ---
 
 ## 5 · Styling Strategy
 
-### 5.1 — Theme Colors
+### 5.1 — StyleSheet Pattern
 
-```js
-const THEMES = {
-  light: {
-    background: "#F9FAFB",
-    card:       "#FFFFFF",
-    text:       "#1F2937",
-    accent:     "#6366F1",  // indigo-500
-    border:     "#E5E7EB",
-  },
-  dark: {
-    background: "#111827",
-    card:       "#1F2937",
-    text:       "#F9FAFB",
-    accent:     "#818CF8",  // indigo-400
-    border:     "#374151",
-  },
-};
-```
-
-### 5.2 — StyleSheet Pattern
-
-Each component owns a `StyleSheet.create({})` block. Theme-dependent values are passed via props or computed inline:
+Each component defines static structure in a `StyleSheet.create({})` block. Theme colors (`THEMES[isDarkMode ? 'dark' : 'light']`) are resolved and passed via styles or props:
 
 ```js
 const styles = StyleSheet.create({
   card: {
     padding: 16,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     margin: 6,
     width: 90,
-    // backgroundColor applied inline based on theme
   },
 });
 ```
 
-### 5.3 — Layout Guidelines
+### 5.2 — Layout Guidelines
 
 | Layout Need | Approach |
 |---|---|
 | Centering content | `justifyContent: 'center'`, `alignItems: 'center'` |
 | Mood grid wrapping | `flexDirection: 'row'`, `flexWrap: 'wrap'`, `justifyContent: 'center'` |
-| Full-screen layout | `flex: 1` on root `View` |
-| Spacing between sections | `marginVertical` on section containers |
-| Safe area handling | Wrap root in `SafeAreaView` |
+| Full-screen layout | `flex: 1` on root container |
+| Safe area handling | Root `SafeAreaProvider` in `App.js` + `SafeAreaView` from `react-native-safe-area-context` on screens |
+| Scroll handling | `ScrollView` for form/card layouts, `FlatList` for dynamic data lists |
 
 ---
 
@@ -266,64 +615,70 @@ const styles = StyleSheet.create({
 
 ### Phase 1 — Module 1: Setup & Building Blocks (45 min)
 
-- [ ] Scaffold the Expo project
-- [ ] Create `constants/moods.js` and `constants/quotes.js`
-- [ ] Build `MoodCard` component with props and static styling
-- [ ] Render a few hardcoded `MoodCard`s in `app/index.js` to verify
+- [ ] Explore the project structure (`App.js`, `screens/`, `constants/`)
+- [ ] Understand `constants/moods.js` data structure
+- [ ] Build `components/MoodCard.js` with props (`emoji`, `label`, `isSelected`, `isDarkMode`) and static styles
+- [ ] Render a static `MoodCard` in `screens/HomeScreen.js` to verify styling and layout
 
 ### Phase 2 — Module 2: State & Interactivity (40 min)
 
-- [ ] Add `useState` for `selectedMood` and `history`
-- [ ] Build `MoodGrid` to render all moods from the array
-- [ ] Wire `onPress` → `handleSelectMood`
-- [ ] Build `MoodDisplay` with conditional rendering (null vs. selected)
-- [ ] Verify: tapping a mood updates the display and pushes to history
+- [ ] Implement `handleSelectMood` in `context/mood-context.js` (`useState` for `selectedMood` and `history`)
+- [ ] Build `components/MoodGrid.js` to map over `MOODS` and render `MoodCard` items
+- [ ] Build `components/MoodDisplay.js` with conditional rendering (placeholder vs. selected mood + motivational quote from `QUOTES`)
+- [ ] Connect `MoodGrid` and `MoodDisplay` to `useMood()` inside `screens/HomeScreen.js`
+- [ ] Verify: tapping a mood card updates the display and logs to history
 
 ### Phase 3 — Module 3: Lists, Themes & Polish (35 min)
 
-- [ ] Build `HistoryList` with `FlatList`
-- [ ] Build `ThemeToggle` component
-- [ ] Add `isDarkMode` state and theme color logic
-- [ ] Apply theme colors across all components
-- [ ] Polish: selected-card highlight, empty-state messages, spacing
+- [ ] Build `components/HistoryList.js` with `FlatList`, timestamp formatting, and empty-state messaging
+- [ ] Connect `HistoryList` to `screens/HistoryScreen.js` via `useMood()`
+- [ ] Build `components/ThemeToggle.js` and implement `toggleDarkMode` in `context/mood-context.js`
+- [ ] Apply theme tokens (`THEMES`) across cards, screens, and text
+- [ ] Polish: active card border highlight, pressed opacity feedback, safe area insets
 
 ---
 
 ## 7 · Starter vs. Solution Code Strategy
 
-| Variant | Contents | Purpose |
+| Variant | Branch | Purpose |
 |---|---|---|
-| **Starter** | Scaffolded files with `// TODO` comments and empty function bodies | Attendees fill in the blanks during the workshop |
-| **Solution** | Fully working implementation | Reference for instructors; attendees can compare after each module |
+| **Starter** | `sandbox-js` | Scaffolded files with `// TODO` comments and hints for attendees to complete |
+| **Solution** | `demo-js` | Fully working reference implementation for instructors and attendees |
 
 > [!IMPORTANT]
-> The starter code should compile and run at every stage — even if components render placeholder text — so attendees always have a working app on their phone.
+> The starter code on `sandbox-js` compiles and runs cleanly from step 1 so attendees always have a working app on their device while completing each module.
 
 ---
 
-## 8 · Key React Native APIs Referenced
+## 8 · Key React Native & Expo APIs Referenced
 
-| API | Import From | Used In |
+| API / Component | Import From | Used In |
 |---|---|---|
-| `View` | `react-native` | All components |
-| `Text` | `react-native` | All components |
+| `View` | `react-native` | All components & screens |
+| `Text` | `react-native` | All components & screens |
 | `Pressable` | `react-native` | `MoodCard`, `ThemeToggle` |
 | `FlatList` | `react-native` | `HistoryList` |
-| `StyleSheet` | `react-native` | All components |
-| `SafeAreaView` | `react-native` | `app/index.js` |
-| `useState` | `react` | `app/index.js` |
+| `ScrollView` | `react-native` | `HomeScreen` |
+| `StyleSheet` | `react-native` | All components & screens |
+| `SafeAreaProvider` | `react-native-safe-area-context` | `App.js` |
+| `SafeAreaView` | `react-native-safe-area-context` | `screens/HomeScreen.js`, `screens/HistoryScreen.js` |
+| `createBottomTabNavigator` | `@react-navigation/bottom-tabs` | `App.js` |
+| `createStaticNavigation` | `@react-navigation/native` | `App.js` |
+| `StatusBar` | `expo-status-bar` | `App.js` |
+| `useState`, `useContext`, `createContext` | `react` | `context/mood-context.js` |
 
 ---
 
 ## 9 · Extension Points (Post-Workshop)
 
-These map to the **Intermediate & Advanced** sections in the lesson plan. No code is provided for these during the core workshop, but the architecture above is designed to accommodate them:
+These map to the **Intermediate & Advanced** sections in [`lesson-plan.md`](file:///Users/jnguyen/Documents/GitHub/react-native-launchpad/docs/lesson-plan.md). The `demo-js` architecture is structured to accommodate them easily:
 
 | Extension | Where It Plugs In |
 |---|---|
-| **Navigation** (`expo-router`) | Split `index.js` into Home + History screens |
-| **Persistent Storage** (`AsyncStorage`) | Load/save `history` array in `useEffect` |
-| **Animations** (`react-native-reanimated`) | Animate `MoodDisplay` on mood change |
-| **API Integration** (`fetch`) | Replace `QUOTES` constant with live API call |
-| **Context / Global State** | Lift theme into a `ThemeContext` provider |
-| **TypeScript** | Rename `.js` → `.tsx`, add interfaces for props |
+| **Persistent Storage** (`@react-native-async-storage/async-storage`) | Load & save `history` array in `context/mood-context.js` using `useEffect` |
+| **Haptic Feedback** (`expo-haptics`) | Trigger haptic ticks on `MoodCard` press and `ThemeToggle` press |
+| **Animations** (`react-native-reanimated`) | Add scale bounce to `MoodCard` press and fade transitions to `MoodDisplay` quotes |
+| **API Integration** (`fetch`) | Replace static `QUOTES` with live quotes from a public API |
+| **Journaling & Notes** (`TextInput`) | Allow users to attach a personal note to each logged mood |
+| **Stack Navigation** (`@react-navigation/native-stack`) | Add a detail modal screen for inspecting past mood entries |
+| **TypeScript Migration** | Rename `.js` → `.tsx`, add typed interfaces for moods and context state |
